@@ -103,22 +103,6 @@
         runSpeed: { type: 'number', default: 10 },
         normalSpeed: { type: 'number', default: 5 }
       },
-      // Komponen tombol maju
-AFRAME.registerComponent('move-forward-on-click', {
-  init: function () {
-    this.el.addEventListener('click', () => {
-      const camera = document.querySelector('[camera]');
-      const direction = new THREE.Vector3();
-      camera.object3D.getWorldDirection(direction);
-      direction.y = 0;
-      direction.normalize();
-      const pos = camera.object3D.position;
-      pos.add(direction.multiplyScalar(2));
-      camera.setAttribute('position', `${pos.x} ${pos.y} ${pos.z}`);
-    });
-  }
-});
-
       init: function () {
         this.isJumping = false;
         this.velocityY = 0;
@@ -196,12 +180,7 @@ AFRAME.registerComponent('move-forward-on-click', {
       jump-and-run 
       position="-1 1.6 22">
     </a-entity>
-    <a-entity geometry="primitive: plane; height: 0.5; width: 1"
-          material="color: green"
-          position="0 1.5 -2"
-          text="value: MAJU; align: center"
-          class="clickable"
-          move-forward-on-click>
+
     <a-entity light="type: ambient; intensity: 0.5"></a-entity>
     <a-entity light="type: directional; intensity: 1" position="0 10 5"></a-entity>
   </a-scene>

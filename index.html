@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>VR-Castle Game</title>
+  <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+  <style>
+    #musicButton, #stopMusicButton {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      z-index: 999;
+    }
+  </style>
+
+  <script>
+    // Komponen rotate
+    AFRAME.registerComponent('rotate-around', {
+      schema: {
+        radius: { type: 'number', default: 10 },
+        speed: { type: 'number', default: 1 }
+      },
+      tick: function () {
+        let time = Date.now() * 0.001 * this.data.speed;
+        this.el.setAttribute('position', {
+          x: Math.cos(time) * this.data.radius,
+          y: 5,
+          z: Math.sin(time) * this.data.radius
+        });
+      }
+    });
+
+    AFRAME.registerComponent('move-on-click', {
+      schema: { to: { type: 'vec3' } },
+      init: function () {
+        this.startPos = this.el.object3D.position.clone();
+        this.moved = false;
+        this.el.addEventListener('click', () => {
+          const target = this.moved ? this.startPos : this.data.to;
+          this.el.setAttribute('animation__move', {
+            property: 'position',
+            to: `${target.x} ${target.y} ${target.z}`,
+            dur: 1000,
+            easing: 'easeInOutQuad'
+          });
+          this.moved = !this.moved;
+        });
+      }
+    });
+
+    AFRAME.registerComponent('fly-and-return', {
+      schema: { to: { type: 'vec3' } },
+      init: function () {
+        this.startPos = this.el.object3D.position.clone();
+        this.el.addEventListener('click', () => {
+          this.el.setAttribute('animation__fly', {
+            property: 'position',
+            to: `${this.data.to.x} ${this.data.to.y} ${this.data.to.z}`,
+            dur: 1000,
+            easing: 'easeInOutQuad'
+          });
+          setTimeout(() => {
+            this.el.setAttribute('animation__return', {
+              property: 'position',
+              to: `${this.startPos.x} ${this.startPos.y} ${this.startPos.z}`,
+              dur: 1000,
+              easing: 'easeInOutQuad'
+            });
+          }, 1500);
+        });
+      }
+    });
+
+    AFRAME.registerComponent('say-hi-on-click', {
+      init: function () {
+        this.el.addEventListener('click', () => {
+          if (this.textEntity) return;
+          const textEl = document.createElement('a-text');
+          textEl.setAttribute('value', 'Hi!');
+          textEl.setAttribute('color', 'black');
+          textEl.setAttribute('align', 'center');
+          textEl.setAttribute('position', '0 2 0');
+          textEl.setAttribute('scale', '2 2 2');
+          textEl.setAttribute('side', 'double');
+          this.el.sceneEl.appendChild(textEl);
+          this.textEntity = textEl;
+          setTimeout(() => {
+            if (this.textEntity && this.textEntity.parentNode) {
+              this.el.sceneEl.removeChild(this.textEntity);
+              this.textEntity = null;
+            }
+          }, 2000);
+        });
+      }
+    });
+
+    // Komponen jump + run
+    AFRAME.registerComponent('jump-and-run', {
+      schema: {
+        jumpHeight: { type: 'number', default: 5 },
+        runSpeed: { type: 'number', default: 10 },
+        normalSpeed: { type: 'number', default: 5 }
+      },
+      init: function () {
+        this.isJumping = false;
+        this.velocityY = 0;
+        this.groundY = this.el.object3D.position.y;
+        this.keys = {};
+        window.addEventListener('keydown', (e) => {
+          this.keys[e.code] = true;
+        });
+        window.addEventListener('keyup', (e) => {
+          this.keys[e.code] = false;
+        });
+      },
+      tick: function (time, deltaTime) {
+        const pos = this.el.object3D.position;
+        const dt = deltaTime / 1000;
+
+        if (this.keys['Space'] && !this.isJumping) {
+          this.velocityY = this.data.jumpHeight;
+          this.isJumping = true;
+        }
+
+        if (this.isJumping) {
+          this.velocityY -= 9.8 * dt;
+          pos.y += this.velocityY * dt;
+          if (pos.y <= this.groundY) {
+            pos.y = this.groundY;
+            this.isJumping = false;
+            this.velocityY = 0;
+          }
+        }
+
+        const movement = this.el.components['movement-controls'];
+        if (movement) {
+          movement.data.speed = (this.keys['ShiftLeft'] || this.keys['ShiftRight']) ? this.data.runSpeed : this.data.normalSpeed;
+        }
+      }
+    });
+  </script>
+</head>
+
+<body>
+  <button id="musicButton">Play Music</button>
+  <button id="stopMusicButton" style="display: none;">Stop Music</button>
+
+  <a-scene cursor="rayOrigin: mouse" raycaster="objects: .clickable">
+    <a-assets>
+      <img id="sky" src="assets/sky-blue-clear-white.jpg">
+      <a-asset-item id="castle" src="models/castle_village_scene.glb"></a-asset-item>
+      <a-asset-item id="natalie" src="models/natalie_from_a_minecraft_movie.glb"></a-asset-item>
+      <a-asset-item id="steve" src="models/steve_from_a_minecraft_movie.glb"></a-asset-item>
+      <a-asset-item id="truck" src="models/pickup_truck.glb"></a-asset-item>
+      <a-asset-item id="garrett" src="models/garrett_from_a_minecraft_movie.glb"></a-asset-item>
+      <a-asset-item id="chicken" src="models/chicken.glb"></a-asset-item>
+      <a-asset-item id="airplane" src="models/airplane.glb"></a-asset-item>
+      <audio id="bgmusic" src="audio/gentle-fields-194622.mp3" preload="auto"></audio>
+    </a-assets>
+
+    <a-entity id="musicEntity" sound="src: #bgmusic; autoplay: false; loop: true; volume: 0.5"></a-entity>
+    <a-sky src="#sky"></a-sky>
+
+    <a-entity gltf-model="#castle" position="0 0 0" scale="30 30 30"></a-entity>
+
+    <a-entity id="natalie" gltf-model="#natalie" position="0 0 18" scale="0.5 0.5 0.5" class="clickable" move-on-click="to: 2 0 18"></a-entity>
+    <a-entity id="steve" gltf-model="#steve" position="-2 0 16" scale="0.5 0.5 0.5" class="clickable" move-on-click="to: -2 0 12"></a-entity>
+    <a-entity id="garrett" gltf-model="#garrett" position="-1 0 0" scale="0.5 0.5 0.5" class="clickable" say-hi-on-click></a-entity>
+    <a-entity id="truck" gltf-model="#truck" position="0 0 3" scale="1 1 1" class="clickable" move-on-click="to: 0 0 13"></a-entity>
+    <a-entity gltf-model="#chicken" position="-2 0 9" scale="0.4 0.4 0.4" class="clickable" fly-and-return="to: -2 3 9"></a-entity>
+    <a-entity gltf-model="#airplane" position="-2 10 14" scale="0.01 0.01 0.01" rotate-around="radius: 15; speed: 0.5"></a-entity>
+
+    <a-entity 
+      camera 
+      look-controls 
+      wasd-controls 
+      movement-controls="speed: 5" 
+      jump-and-run 
+      position="-1 1.6 22">
+    </a-entity>
+
+    <a-entity light="type: ambient; intensity: 0.5"></a-entity>
+    <a-entity light="type: directional; intensity: 1" position="0 10 5"></a-entity>
+  </a-scene>
+
+  <script>
+    const musicButton = document.getElementById('musicButton');
+    const stopMusicButton = document.getElementById('stopMusicButton');
+    const musicEntity = document.querySelector('#musicEntity');
+
+    musicButton.addEventListener('click', function () {
+      musicEntity.components.sound.playSound();
+      musicButton.style.display = 'none';
+      stopMusicButton.style.display = 'inline-block';
+    });
+
+    stopMusicButton.addEventListener('click', function () {
+      musicEntity.components.sound.stopSound();
+      stopMusicButton.style.display = 'none';
+      musicButton.style.display = 'inline-block';
+    });
+  </script>
+</body>
+</html>
